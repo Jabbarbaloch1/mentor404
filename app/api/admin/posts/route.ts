@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { PostStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-guard";
 import { makeSlug, estimateReadTime } from "@/lib/utils";
+
+const VALID_STATUSES: PostStatus[] = ["DRAFT", "PUBLISHED", "SCHEDULED", "ARCHIVED"];
 
 const postSchema = z.object({
   title: z.string().min(1).max(200),
@@ -24,10 +27,11 @@ export async function GET(req: NextRequest) {
   if (error) return error;
 
   const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
+  const statusParam = searchParams.get("status");
+  const status = VALID_STATUSES.find((s) => s === statusParam);
 
   const posts = await prisma.post.findMany({
-    where: status ? { status: status as "DRAFT" | "PUBLISHED" | "SCHEDULED" | "ARCHIVED" } : undefined,
+    where: status ? { status } : undefined,
     orderBy: { updatedAt: "desc" },
     include: { category: true, tags: { include: { tag: true } } },
   });

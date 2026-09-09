@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { LabDomain } from "@prisma/client";
 import LabCard from "@/components/ui/LabCard";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Link from "next/link";
@@ -8,7 +9,7 @@ export const metadata = {
   description: "Hands-on write-ups from security testing and experiments.",
 };
 
-const DOMAINS = ["WEB", "NETWORK", "MALWARE", "FORENSICS", "CLOUD", "MOBILE", "OSINT", "OTHER"];
+const DOMAINS: LabDomain[] = ["WEB", "NETWORK", "MALWARE", "FORENSICS", "CLOUD", "MOBILE", "OSINT", "OTHER"];
 
 export default async function LabPage({
   searchParams,
@@ -16,11 +17,12 @@ export default async function LabPage({
   searchParams: Promise<{ domain?: string }>;
 }) {
   const { domain } = await searchParams;
+  const validDomain = DOMAINS.find((d) => d === domain);
 
   const entries = await prisma.labEntry.findMany({
     where: {
       published: true,
-      domain: domain ? (domain as (typeof DOMAINS)[number]) : undefined,
+      domain: validDomain,
     },
     orderBy: { createdAt: "desc" },
   });

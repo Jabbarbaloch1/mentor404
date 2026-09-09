@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { ResourceType } from "@prisma/client";
 import ResourceCard from "@/components/ui/ResourceCard";
 import SectionHeader from "@/components/ui/SectionHeader";
 import Link from "next/link";
@@ -8,7 +9,7 @@ export const metadata = {
   description: "Curated cybersecurity tools, cheat sheets, and downloads.",
 };
 
-const TYPES = [
+const TYPES: { label: string; value: ResourceType | "" }[] = [
   { label: "All", value: "" },
   { label: "Tools", value: "TOOL" },
   { label: "Cheat Sheets", value: "CHEATSHEET" },
@@ -23,11 +24,12 @@ export default async function ResourcesPage({
   searchParams: Promise<{ type?: string }>;
 }) {
   const { type } = await searchParams;
+  const validType = TYPES.find((t) => t.value === type)?.value || undefined;
 
   const resources = await prisma.resource.findMany({
     where: {
       published: true,
-      type: type ? (type as "TOOL" | "CHEATSHEET" | "LINK" | "DOWNLOAD" | "COURSE") : undefined,
+      type: validType || undefined,
     },
     orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
     include: { category: true },
