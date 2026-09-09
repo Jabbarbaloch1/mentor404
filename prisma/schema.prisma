@@ -1,0 +1,229 @@
+// Mentor404 — Prisma schema
+// Postgres (Neon) — deployed free on Vercel
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Auth ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  password      String? // bcrypt hash — for credentials login (admin only)
+  image         String?
+  role          Role      @default(ADMIN)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  posts     Post[]
+  resources Resource[]
+  labEntries LabEntry[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+// ---------- Content taxonomy ----------
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String?  @default("#5b5fef") // accent color per category
+  icon        String? // lucide icon name
+  createdAt   DateTime @default(now())
+
+  posts     Post[]
+  resources Resource[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  slug  String @unique
+
+  posts     PostTag[]
+  resources ResourceTag[]
+
+  @@map("tags")
+}
+
+// ---------- Blog / Articles ----------
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  title         String
+  slug          String     @unique
+  excerpt       String?
+  content       String     @db.Text // markdown/HTML from editor
+  coverImage    String?
+  status        PostStatus @default(DRAFT)
+  featured      Boolean    @default(false)
+  readTimeMin   Int?       @default(5)
+  views         Int        @default(0)
+
+  metaTitle       String?
+  metaDescription String?
+
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+
+  tags PostTag[]
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+  @@map("posts")
+}
+
+model PostTag {
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  String
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+// ---------- Resources (tools, cheat sheets, links) ----------
+
+enum ResourceType {
+  TOOL
+  CHEATSHEET
+  LINK
+  DOWNLOAD
+  COURSE
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  title       String
+  slug        String       @unique
+  description String       @db.Text
+  type        ResourceType @default(TOOL)
+  url         String? // external link
+  fileUrl     String? // uploaded file (Vercel Blob)
+  icon        String?
+  featured    Boolean      @default(false)
+  published   Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  category   Category? @relation(fields: [categoryId], references: [id])
+  categoryId String?
+
+  tags ResourceTag[]
+
+  @@map("resources")
+}
+
+model ResourceTag {
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  resourceId String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId      String
+
+  @@id([resourceId, tagId])
+  @@map("resource_tags")
+}
+
+// ---------- Lab (write-ups / experiments) ----------
+
+enum LabDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum LabDomain {
+  WEB
+  NETWORK
+  MALWARE
+  FORENSICS
+  CLOUD
+  MOBILE
+  OSINT
+  OTHER
+}
+
+model LabEntry {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  summary     String?
+  objective   String?       @db.Text // what the test set out to find/prove
+  impact      String?       @db.Text // real-world risk/severity if this holds
+  content     String        @db.Text
+  domain      LabDomain     @default(WEB)
+  difficulty  LabDifficulty @default(BEGINNER)
+  toolsUsed   String[]      @default([])
+  coverImage  String?
+  published   Boolean       @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  @@map("lab_entries")
+}
+
+// ---------- Contact ----------
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("contact_messages")
+}
+
+// ---------- Newsletter (optional, low-effort win) ----------
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("subscribers")
+}
